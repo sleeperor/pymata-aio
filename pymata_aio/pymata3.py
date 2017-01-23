@@ -32,7 +32,7 @@ class PyMata3:
     """
 
     def __init__(self, arduino_wait=2, sleep_tune=0.0001, log_output=False, com_port=None,
-                 ip_address=None, ip_port=2000, ip_handshake='*HELLO*'):
+                 ip_address=None, ip_port=2000, ip_handshake='*HELLO*', pymata_core_impl=PymataCore):
         """
         Constructor for the PyMata3 API
         If log_output is set to True, a log file called 'pymata_log'
@@ -57,7 +57,7 @@ class PyMata3:
         self.loop = asyncio.get_event_loop()
 
         self.sleep_tune = sleep_tune
-        self.core = PymataCore(arduino_wait, self.sleep_tune, log_output,
+        self.core = pymata_core_impl(arduino_wait, self.sleep_tune, log_output,
                                com_port, ip_address, ip_port, ip_handshake)
         self.core.start()
         self.sleep(1)

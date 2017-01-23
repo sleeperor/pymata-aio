@@ -122,6 +122,9 @@ class PymataCore:
                                    PrivateConstants.PIXY_DATA:
                                        self._pixy_data}
 
+        # extend dictionary with mapping from extension method
+        self.command_dictionary.update(self.extended_command_dictionary())
+
         # report query results are stored in this dictionary
         self.query_reply_data = {PrivateConstants.REPORT_VERSION: '',
                                  PrivateConstants.STRING_DATA: '',
@@ -240,6 +243,15 @@ class PymataCore:
 
         # set up signal handler for controlC
         self.loop = asyncio.get_event_loop()
+
+    def extend_sysex(self, command, command_handler):
+        """
+
+        :param command:
+        :param command_handler:
+        :return:
+        """
+        self.command_dictionary[command] = command_handler
 
     def start(self):
         """
@@ -1909,3 +1921,10 @@ class PymataCore:
             current_command.append(next_command_byte)
             number_of_bytes -= 1
         return current_command
+
+    def extended_command_dictionary(self):
+        """
+
+        :return: command dictionary
+        """
+        return {}
