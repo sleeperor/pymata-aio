@@ -5,6 +5,18 @@ import asyncio
 from pymata_aio.pymata3 import PyMata3
 from pymata_aio.pymata_core import PymataCore
 
+"""
+DHT_CONFIG	DHT_PIN	DHT_TYPE
+0x66	2	22      11
+
+DHT_DATA	DHT_PIN	TEMP_TYPE
+0x67	    2	    0		Farenheit
+0x67	    2	    1		Celsius
+
+DHT_DATA	DHT_PIN	DHT_TEMP	DHT_HUMIDITY
+0x67	    2	    26	        34
+"""
+
 
 class ExtConstants:
     DHT_CONFIG = 0x66  # configure DHT
@@ -21,11 +33,18 @@ class ExtPyMataCore(PymataCore):
     def __init__(self, arduino_wait=2, sleep_tune=0.0001, log_output=False, com_port=None, ip_address=None,
                  ip_port=2000, ip_handshake='*HELLO*'):
         super().__init__(arduino_wait, sleep_tune, log_output, com_port, ip_address, ip_port, ip_handshake)
+        self.dht_pin_map = {}
+        self.dht_pin_data = {}
 
-    async def dht_config(self, dht_type, dht_pin):
+    async def dht_config(self, dht_pin, dht_type=ExtConstants.DHT_TYPE_DHT11):
         """
+        Configures DHT sensor for given pin
+
+        :param dht_pin: pin number
+        :param dht_type: DHT sensor type
         """
-        await self._send_sysex(ExtConstants.DHT_CONFIG, [dht_type, dht_pin])
+        self.dht_pin_map[dht_pin] = dht_type
+        await self._send_sysex(ExtConstants.DHT_CONFIG, [dht_pin, dht_type])
 
     async def dht_get_data(self, dht_pin):
         """
@@ -34,21 +53,19 @@ class ExtPyMataCore(PymataCore):
         :arg dht_pin:
         :returns: DHT Data
         """
+        if self.dht_pin_map[dht_pin] is None:
+            raise AssertionError
         current_time = time.time()
-        if self.query_reply_data.get(ExtConstants.DHT_DATA) == '':
+        if self.dht_pin_data[dht_pin] is None:
             await self._send_sysex(ExtConstants.DHT_DATA, [dht_pin])
-            while self.query_reply_data.get(ExtConstants.DHT_DATA) == '':
+            while self.dht_pin_data[dht_pin] is None:
                 elapsed_time = time.time()
                 if elapsed_time - current_time > 2:
                     return None
                 await asyncio.sleep(self.sleep_tune)
-        reply = ''
-        for x in self.query_reply_data.get(ExtConstants.DHT_DATA):
-            reply_data = ord(x)
-            if reply_data:
-                reply += chr(reply_data)
-        self.query_reply_data[ExtConstants.DHT_DATA] = reply
-        return self.query_reply_data.get(ExtConstants.DHT_DATA)
+        reply = self.dht_pin_map[dht_pin]
+        self.dht_pin_map[dht_pin] = None
+        return reply
 
     def _dht_data(self, data):
         """
@@ -59,7 +76,10 @@ class ExtPyMataCore(PymataCore):
         """
         # strip off sysex start and end
         data = data[1:-1]
-        print(data)
+        self.dht_pin_data[data[0]] = {
+            'temperature': data[1],
+            'humidity': data[2]
+        }
 
     def extended_command_dictionary(self):
         return {ExtConstants.DHT_DATA: self._dht_data}
